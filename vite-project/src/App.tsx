@@ -92,7 +92,7 @@ export const App = () => {
     setTodos(newTodos);
   };
 
-  // 初めの書き方だと、todoが更新されてもfilteredTodosは更新されないため、新たにfilteredTodosをstateとして定義
+  // 新たにfilteredTodosをstateとして定義
   // それをtodosがfilterが変わったタイミングで更新
   useEffect(() => {
     const filteredTodos = todos.filter((todo) => {
