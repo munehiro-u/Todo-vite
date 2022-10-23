@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
 type Todo = {
   value: string;
@@ -8,13 +8,14 @@ type Todo = {
   detail: string;
 };
 
-type Filter = 'all' | 'checked' | 'unchecked' | 'removed';
+type Filter = "all" | "checked" | "unchecked" | "removed";
 
 export const App = () => {
-  const [text, setText] = useState('');
-  const [detail, setDetail] = useState('');
+  const [text, setText] = useState("");
+  const [detail, setDetail] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>("all");
+  const [filteredTodos, setFilteredTodos] = useState<Todo[]>([]);
 
   const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setText(e.target.value);
@@ -29,40 +30,34 @@ export const App = () => {
 
     const newTodo: Todo = {
       value: text,
-      detail, 
+      detail: detail,
       id: new Date().getTime(),
       checked: false,
       removed: false,
     };
 
     setTodos([newTodo, ...todos]);
-    setText('');
-    setDetail('');
+    setText("");
+    setDetail("");
   };
 
-  const handleOnEdit = (id: number, value: string) => {
+  const handleOnEdit = (props: {
+    id: number;
+    value?: string;
+    detail?: string;
+  }) => {
+    const { id, value, detail } = props;
     const deepCopy = todos.map((todo) => ({ ...todo }));
-
     const newTodos = deepCopy.map((todo) => {
       if (todo.id === id) {
-        todo.value = value;
+        // valueもdetailも「?」をつけているため、undefinedの可能性がある
+        // undefinedの場合は元のvalueやdetailを入れる
+        // undefinedではない（ = 新しく入力された値がある）場合はそれに更新する
+        todo.value = value !== undefined ? value : todo.value;
+        todo.detail = detail !== undefined ? detail : todo.detail;
       }
       return todo;
     });
-
-    setTodos(newTodos);
-  };
-
-  const newhandleOnEdit = (id: number, value: string) => {
-    const deepCopy = todos.map((todo) => ({ ...todo }));
-
-    const newTodos = deepCopy.map((todo) => {
-      if (todo.id === id) {
-        todo.value = value;
-      }
-      return todo;
-    });
-
     setTodos(newTodos);
   };
 
@@ -97,20 +92,25 @@ export const App = () => {
     setTodos(newTodos);
   };
 
-  const filteredTodos = todos.filter((todo) => {
-    switch (filter) {
-      case 'all':
-        return !todo.removed;
-      case 'checked':
-        return todo.checked && !todo.removed;
-      case 'unchecked':
-        return !todo.checked && !todo.removed;
-      case 'removed':
-        return todo.removed;
-      default:
-        return todo;
-    }
-  });
+  // 初めの書き方だと、todoが更新されてもfilteredTodosは更新されないため、新たにfilteredTodosをstateとして定義
+  // それをtodosがfilterが変わったタイミングで更新
+  useEffect(() => {
+    const filteredTodos = todos.filter((todo) => {
+      switch (filter) {
+        case "all":
+          return !todo.removed;
+        case "checked":
+          return todo.checked && !todo.removed;
+        case "unchecked":
+          return !todo.checked && !todo.removed;
+        case "removed":
+          return todo.removed;
+        default:
+          return todo;
+      }
+    });
+    setFilteredTodos(filteredTodos);
+  }, [filter, todos]);
 
   return (
     <div>
@@ -124,7 +124,7 @@ export const App = () => {
         <option value="unchecked">進行中のタスク</option>
         <option value="removed">ごみ箱</option>
       </select>
-      {filter === 'removed' ? (
+      {filter === "removed" ? (
         <button
           onClick={handleOnEmpty}
           disabled={todos.filter((todo) => todo.removed).length === 0}
@@ -132,18 +132,24 @@ export const App = () => {
           ごみ箱を空にする
         </button>
       ) : (
-        filter !== 'checked' && (
+        filter !== "checked" && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleOnSubmit();
-            
-            }} 
+            }}
           >
-            <input type="text" value={text} onChange={(e) => handleOnChange(e)} />
-            <input type="text" value={detail} onChange={(e) => newhandleOnChange(e)} />
-            <input type="submit" value="追加" onSubmit={handleOnSubmit || newhandleOnChange} />
-            
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => handleOnChange(e)}
+            />
+            <input
+              type="text"
+              value={detail}
+              onChange={(e) => newhandleOnChange(e)}
+            />
+            <input type="submit" value="追加" />
           </form>
         )
       )}
@@ -159,18 +165,22 @@ export const App = () => {
               />
               <input
                 type="text"
-                disabled={todo.checked || todo.removed}
                 value={todo.value}
-                onChange={(e) => handleOnEdit(todo.id, e.target.value)}
+                disabled={todo.checked || todo.removed}
+                onChange={(e) => {
+                  handleOnEdit({ id: todo.id, value: e.target.value });
+                }}
               />
               <input
-                type="detail"
+                type="text"
                 disabled={todo.checked || todo.removed}
-                value={todo.value}
-                onChange={(e) => newhandleOnEdit(todo.id, e.target.value)}
+                value={todo.detail}
+                onChange={(e) =>
+                  handleOnEdit({ id: todo.id, detail: e.target.value })
+                }
               />
               <button onClick={() => handleOnRemove(todo.id, todo.removed)}>
-                {todo.removed ? '復元' : '削除'}
+                {todo.removed ? "復元" : "削除"}
               </button>
             </li>
           );
